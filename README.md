@@ -11,7 +11,8 @@
 - Luis Lucena Wanderley De Siqueira  
 - Lucas Henrique Gomes Medeiros  
 - Mariana Xavier Bezerra  
-- Micaella Maria Barbosa Cabral  
+- Micaella Maria Barbosa Cabral
+- Victor Jose Paes e Silva
 
 ---
 
