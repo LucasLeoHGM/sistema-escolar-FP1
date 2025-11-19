@@ -1,0 +1,28 @@
+[
+    {
+        "nome": "Ana Silva",
+        "email": "assn@cesar.school",
+        "turma": "9A"
+    },
+
+    {
+        "nome": "Bruno Souza",
+        "email": "bssb@cesar.school",
+        "turma": "9B"
+    },
+    {
+        "nome": "Carla Pereira",
+        "email": "cpcp@cesar.school",
+        "turma": "9C"
+    },
+    {
+        "nome": "Daniel Costa",
+        "email": "dcc@cesar.school",
+        "turma": "8A"
+    },
+    {
+        "nome": "mica novo",
+        "email": "mmbc@cesar.school",
+        "turma": "9o"
+    }
+]
