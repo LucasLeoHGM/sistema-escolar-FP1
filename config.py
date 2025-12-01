@@ -1,13 +1,20 @@
+import os
+from dotenv import load_dotenv
 import psycopg2
 import psycopg2.extras
 
+# Load environment variables from .env if present
+load_dotenv()
+
+# Configuration read from environment variables. Do not store secrets in source.
 DB_CONFIG = {
-    "host": "dpg-d45qihchg0os73e5b2i0-a.oregon-postgres.render.com",
-    "database": "test1_v02p",
-    "user": "test1_v02p_user",
-    "password": "gv5WuvRUhGrvLnDVfiEeaEEOe0QDGgPv",
-    "port": "5432"
+    "host": os.getenv("DB_HOST", "localhost"),
+    "database": os.getenv("DB_NAME", "sistema_escolar"),
+    "user": os.getenv("DB_USER", "postgres"),
+    "password": os.getenv("DB_PASSWORD", ""),
+    "port": os.getenv("DB_PORT", "5432")
 }
+
 
 def get_connection():
     return psycopg2.connect(
@@ -17,6 +24,7 @@ def get_connection():
         password=DB_CONFIG["password"],
         port=DB_CONFIG["port"]
     )
+
 
 def dict_cursor(conn):
     return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
