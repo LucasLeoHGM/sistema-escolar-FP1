@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <a class="back-link" href="/"><span class="label">Fechar</span></a>
+    <h1>Professores</h1>
+
+    {% if db_error %}
+    <div class="alert error">
+        <strong>Erro de conexão com o banco:</strong> {{ db_error }}
+    </div>
+    {% endif %}
+
+    <div class="controls">
+        <form id="formProf" class="form-row">
+            <input id="nome" placeholder="Nome" required>
+            <input id="disciplina" placeholder="Disciplina" required>
+            <button class="btn" type="submit">Cadastrar</button>
+        </form>
+        <div class="spacer"></div>
+    </div>
+
+    <table>
+        <thead><tr><th>ID</th><th>Nome</th><th>Disciplina</th><th>Ações</th></tr></thead>
+        <tbody id="tbody" {% if professores %}data-server="1"{% endif %}>
+        {% if professores %}
+            {% for p in professores %}
+            <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.nome }}</td>
+                <td>{{ p.disciplina }}</td>
+                <td>
+                    <button class="btn ghost btn-editar" data-id="{{ p.id }}" data-nome="{{ (p.nome|replace('"','&quot;')) }}" data-disciplina="{{ (p.disciplina|replace('"','&quot;')) }}">Editar</button>
+                    <button class="btn danger btn-deletar" data-id="{{ p.id }}">Excluir</button>
+                </td>
+            </tr>
+            {% endfor %}
+        {% endif %}
+        </tbody>
+    </table>
+
+    <script>
+    const API = "/professores/api";
+
+    async function listar(){
+        const tbody = document.getElementById("tbody");
+        if(tbody.dataset.server === "1") return;
+        const res = await fetch(API);
+        const dados = await res.json();
+        tbody.innerHTML = "";
+        dados.forEach(p=>{
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${p.id}</td>
+                <td>${p.nome}</td>
+                <td>${p.disciplina}</td>
+                <td>
+                    <button class="btn ghost btn-editar" data-id="${p.id}" data-nome="${(p.nome||'').replace(/"/g,'&quot;')}" data-disciplina="${(p.disciplina||'').replace(/"/g,'&quot;')}">Editar</button>
+                    <button class="btn danger btn-deletar" data-id="${p.id}">Excluir</button>
+                </td>`;
+            tbody.appendChild(row);
+        });
+    }
+
+    document.getElementById("formProf").addEventListener("submit", async (e)=>{
+        e.preventDefault();
+        const payload = { nome: document.getElementById('nome').value, disciplina: document.getElementById('disciplina').value };
+        const resp = await fetch(API, { method: "POST", headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if(!resp.ok){
+            const err = await resp.json().catch(()=>({erro: resp.statusText}));
+            alert('Erro ao criar professor: ' + (err.erro || JSON.stringify(err)));
+            return;
+        }
+        e.target.reset();
+        document.getElementById("tbody").dataset.server = "0";
+        listar();
+    });
+
+    async function deletar(id){
+        if(!confirm("Excluir professor?")) return;
+        await fetch(`${API}/${id}`, { method: "DELETE" });
+        document.getElementById("tbody").dataset.server = "0";
+        listar();
+    }
+
+    async function editar(id, nome, disciplina){
+        const novoNome = prompt("Nome:", nome) || nome;
+        const novaDisciplina = prompt("Disciplina:", disciplina) || disciplina;
+        await fetch(`${API}/${id}`, {
+            method: "PUT",
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ nome: novoNome, disciplina: novaDisciplina })
+        });
+        document.getElementById("tbody").dataset.server = "0";
+        listar();
+    }
+
+    document.getElementById("tbody").addEventListener("click", (e)=>{
+        const btn = e.target;
+        if(btn.classList.contains("btn-deletar")){
+            deletar(btn.dataset.id);
+        } else if(btn.classList.contains("btn-editar")){
+            editar(btn.dataset.id, btn.dataset.nome || '', btn.dataset.disciplina || '');
+        }
+    });
+
+    listar();
+    </script>
+
+{% endblock %}

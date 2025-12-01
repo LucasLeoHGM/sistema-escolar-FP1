@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <a class="back-link" href="/"><span class="label">Fechar</span></a>
+    <h1>Relatório: Alunos por Turma</h1>
+
+    {% if db_error %}
+    <div class="alert error">
+        <strong>Erro de conexão com o banco:</strong> {{ db_error }}
+    </div>
+    {% endif %}
+
+    {% for turma in dados %}
+    <div class="turma">
+        <h2>Turma: {{ turma.nome_turma }} <span class="small">(Sala: {{ turma.sala }})</span></h2>
+
+        {% if turma.alunos %}
+        <table>
+            <thead><tr><th>ID</th><th>Nome</th><th>Idade</th></tr></thead>
+            <tbody>
+            {% for aluno in turma.alunos %}
+            <tr>
+                <td>{{ aluno.id }}</td>
+                <td>{{ aluno.nome }}</td>
+                <td>{{ aluno.idade }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p><b>Nenhum aluno nesta turma.</b></p>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+{% endblock %}
