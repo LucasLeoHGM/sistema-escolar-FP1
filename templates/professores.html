@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Professores</title>
+    <style> body{font-family:Arial;margin:30px} input{padding:6px} table{border-collapse:collapse} th,td{border:1px solid #ccc;padding:8px}</style>
+</head>
+<body>
+    <h2>Professores</h2>
+
+    <form id="formProf">
+        <input id="nome" placeholder="Nome" required>
+        <input id="disciplina" placeholder="Disciplina" required>
+        <button type="submit">Cadastrar</button>
+    </form>
+
+    <hr>
+
+    <table>
+        <thead><tr><th>ID</th><th>Nome</th><th>Disciplina</th><th>Ações</th></tr></thead>
+        <tbody id="tbody"></tbody>
+    </table>
+
+<script>
+const API = "/professores/api";
+
+async function listar(){
+    const res = await fetch(API);
+    const dados = await res.json();
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = "";
+    dados.forEach(p=>{
+        tbody.innerHTML += `<tr>
+            <td>${p.id}</td>
+            <td>${p.nome}</td>
+            <td>${p.disciplina}</td>
+            <td>
+                <button onclick="editar(${p.id},'${(p.nome||'').replace(/'/g,"\\'")}','${(p.disciplina||'').replace(/'/g,"\\'")}')">Editar</button>
+                <button onclick="deletar(${p.id})" style="background:red;color:#fff">Excluir</button>
+            </td>
+        </tr>`;
+    });
+}
+
+document.getElementById("formProf").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const payload = { nome: nome.value, disciplina: disciplina.value };
+    await fetch(API, { method: "POST", headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    e.target.reset();
+    listar();
+});
+
+async function deletar(id){
+    if(!confirm("Excluir professor?")) return;
+    await fetch(`${API}/${id}`, { method: "DELETE" });
+    listar();
+}
+
+async function editar(id, nome, disciplina){
+    const novoNome = prompt("Nome:", nome) || nome;
+    const novaDisciplina = prompt("Disciplina:", disciplina) || disciplina;
+    await fetch(`${API}/${id}`, {
+        method: "PUT",
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ nome: novoNome, disciplina: novaDisciplina })
+    });
+    listar();
+}
+
+listar();
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório - Alunos por Turma</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        table { width: 60%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #aaa; padding: 8px; text-align: left; }
+        th { background-color: #ddd; }
+        .turma { margin-top: 30px; }
+    </style>
+</head>
+<body>
+
+    <h1>Relatório: Alunos por Turma</h1>
+
+    {% for turma in dados %}
+    <div class="turma">
+        <h2>Turma: {{ turma.nome_turma }} (Sala: {{ turma.sala }})</h2>
+
+        {% if turma.alunos %}
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Idade</th>
+            </tr>
+
+            {% for aluno in turma.alunos %}
+            <tr>
+                <td>{{ aluno.id }}</td>
+                <td>{{ aluno.nome }}</td>
+                <td>{{ aluno.idade }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p><b>Nenhum aluno nesta turma.</b></p>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+</body>
+</html>

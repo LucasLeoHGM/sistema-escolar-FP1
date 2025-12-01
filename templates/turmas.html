@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Turmas</title>
+    <style> body{font-family:Arial;margin:30px} input{padding:6px} table{border-collapse:collapse} th,td{border:1px solid #ccc;padding:8px}</style>
+</head>
+<body>
+    <h2>Turmas</h2>
+
+    <form id="formTurma">
+        <input id="nome" placeholder="Nome da turma" required>
+        <input id="sala" placeholder="Sala">
+        <input id="professor_id" placeholder="ID Professor" type="number">
+        <button type="submit">Cadastrar</button>
+    </form>
+
+    <hr>
+
+    <table>
+        <thead><tr><th>ID</th><th>Nome</th><th>Sala</th><th>Professor</th><th>Ações</th></tr></thead>
+        <tbody id="tbody"></tbody>
+    </table>
+
+<script>
+const API = "/turmas/api";
+
+async function listar(){
+    const res = await fetch(API);
+    const dados = await res.json();
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = "";
+    dados.forEach(t=>{
+        tbody.innerHTML += `<tr>
+            <td>${t.id}</td>
+            <td>${t.nome}</td>
+            <td>${t.sala||''}</td>
+            <td>${t.professor_id||''}</td>
+            <td>
+                <button onclick="editar(${t.id},'${(t.nome||'').replace(/'/g,"\\'")}','${(t.sala||'').replace(/'/g,"\\'")}',${t.professor_id||'null'})">Editar</button>
+                <button onclick="deletar(${t.id})" style="background:red;color:#fff">Excluir</button>
+            </td>
+        </tr>`;
+    });
+}
+
+document.getElementById("formTurma").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const payload = { nome: nome.value, sala: sala.value, professor_id: professor_id.value ? parseInt(professor_id.value) : null };
+    await fetch(API, { method: "POST", headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    e.target.reset();
+    listar();
+});
+
+async function deletar(id){
+    if(!confirm("Excluir turma?")) return;
+    await fetch(`${API}/${id}`, { method: "DELETE" });
+    listar();
+}
+
+async function editar(id, nomeA, salaA, profA){
+    const novoNome = prompt("Nome:", nomeA) || nomeA;
+    const novaSala = prompt("Sala:", salaA) || salaA;
+    const novoProf = prompt("Professor ID (deixe vazio para null):", profA===null ? '' : profA);
+    await fetch(`${API}/${id}`, {
+        method: "PUT",
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ nome: novoNome, sala: novaSala, professor_id: novoProf ? parseInt(novoProf) : null })
+    });
+    listar();
+}
+
+listar();
+</script>
+</body>
+</html>
