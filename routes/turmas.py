@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template
-from database import SessionLocal
+from database import session_scope
 from models import Turma
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, IntegrityError
 
 turmas_bp = Blueprint("turmas", __name__, url_prefix="/turmas")
 
@@ -9,28 +9,24 @@ turmas_bp = Blueprint("turmas", __name__, url_prefix="/turmas")
 @turmas_bp.route("/", methods=["GET"])
 def page_listar_turmas():
     try:
-        db = SessionLocal()
+        with session_scope() as db:
+            turmas = db.query(Turma).order_by(Turma.id).all()
+            turmas_out = []
+            for t in turmas:
+                turmas_out.append({'id': t.id, 'nome': t.nome, 'sala': t.sala, 'professor_id': t.professor_id, 'professor_nome': t.professor.nome if t.professor else None})
+            return render_template("turmas.html", turmas=turmas_out)
     except OperationalError as e:
         return render_template("turmas.html", turmas=[], db_error=str(e))
-
-    try:
-        turmas = db.query(Turma).order_by(Turma.id).all()
-        turmas_out = []
-        for t in turmas:
-            turmas_out.append({'id': t.id, 'nome': t.nome, 'sala': t.sala, 'professor_id': t.professor_id, 'professor_nome': t.professor.nome if t.professor else None})
-        return render_template("turmas.html", turmas=turmas_out)
-    finally:
-        db.close()
 
 
 @turmas_bp.route("/api", methods=["GET"])
 def api_listar_turmas():
-    db = SessionLocal()
     try:
-        turmas = db.query(Turma).order_by(Turma.id).all()
-        return jsonify([{'id': t.id, 'nome': t.nome, 'sala': t.sala, 'professor_id': t.professor_id} for t in turmas])
-    finally:
-        db.close()
+        with session_scope() as db:
+            turmas = db.query(Turma).order_by(Turma.id).all()
+            return jsonify([{'id': t.id, 'nome': t.nome, 'sala': t.sala, 'professor_id': t.professor_id} for t in turmas])
+    except OperationalError:
+        return jsonify([]), 503
 
 
 def _validar_turma_payload(data):
@@ -59,15 +55,17 @@ def api_criar_turma():
     if err:
         return jsonify({"erro": err}), 400
 
-    db = SessionLocal()
     try:
-        t = Turma(nome=data.get('nome'), sala=data.get('sala'), professor_id=data.get('professor_id'))
-        db.add(t)
-        db.commit()
-        db.refresh(t)
-        return jsonify({"mensagem": "Criado", "id": t.id}), 201
-    finally:
-        db.close()
+        with session_scope() as db:
+            t = Turma(nome=data.get('nome'), sala=data.get('sala'), professor_id=data.get('professor_id'))
+            db.add(t)
+            db.flush()
+            db.refresh(t)
+            return jsonify({"mensagem": "Criado", "id": t.id}), 201
+    except OperationalError:
+        return jsonify({"erro": "Banco de dados indisponível"}), 503
+    except IntegrityError as ie:
+        return jsonify({"erro": str(ie)}), 400
 
 
 @turmas_bp.route("/api/<int:id>", methods=["PUT"])
@@ -77,29 +75,30 @@ def api_atualizar_turma(id):
     if err:
         return jsonify({"erro": err}), 400
 
-    db = SessionLocal()
     try:
-        t = db.get(Turma, id)
-        if not t:
-            return jsonify({"erro": "Turma não encontrada"}), 404
-        t.nome = data.get('nome')
-        t.sala = data.get('sala')
-        t.professor_id = data.get('professor_id')
-        db.commit()
-        return jsonify({"mensagem": "Atualizado"})
-    finally:
-        db.close()
+        with session_scope() as db:
+            t = db.get(Turma, id)
+            if not t:
+                return jsonify({"erro": "Turma não encontrada"}), 404
+            t.nome = data.get('nome')
+            t.sala = data.get('sala')
+            t.professor_id = data.get('professor_id')
+            db.flush()
+            return jsonify({"mensagem": "Atualizado"})
+    except OperationalError:
+        return jsonify({"erro": "Banco de dados indisponível"}), 503
+    except IntegrityError as ie:
+        return jsonify({"erro": str(ie)}), 400
 
 
 @turmas_bp.route("/api/<int:id>", methods=["DELETE"])
 def api_deletar_turma(id):
-    db = SessionLocal()
     try:
-        t = db.get(Turma, id)
-        if not t:
-            return jsonify({"erro": "Turma não encontrada"}), 404
-        db.delete(t)
-        db.commit()
-        return jsonify({"mensagem": "Deletado"})
-    finally:
-        db.close()
+        with session_scope() as db:
+            t = db.get(Turma, id)
+            if not t:
+                return jsonify({"erro": "Turma não encontrada"}), 404
+            db.delete(t)
+            return jsonify({"mensagem": "Deletado"})
+    except OperationalError:
+        return jsonify({"erro": "Banco de dados indisponível"}), 503

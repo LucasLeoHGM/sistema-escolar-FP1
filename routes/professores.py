@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template
-from database import SessionLocal
+from database import session_scope
 from models import Professor
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, IntegrityError
 
 professores_bp = Blueprint("professores", __name__, url_prefix="/professores")
 
@@ -9,26 +9,22 @@ professores_bp = Blueprint("professores", __name__, url_prefix="/professores")
 @professores_bp.route("/", methods=["GET"])
 def page_listar_professores():
     try:
-        db = SessionLocal()
+        with session_scope() as db:
+            profs = db.query(Professor).order_by(Professor.id).all()
+            profs_out = [{'id': p.id, 'nome': p.nome, 'disciplina': p.disciplina} for p in profs]
+            return render_template("professores.html", professores=profs_out)
     except OperationalError as e:
         return render_template("professores.html", professores=[], db_error=str(e))
-
-    try:
-        profs = db.query(Professor).order_by(Professor.id).all()
-        profs_out = [{'id': p.id, 'nome': p.nome, 'disciplina': p.disciplina} for p in profs]
-        return render_template("professores.html", professores=profs_out)
-    finally:
-        db.close()
 
 
 @professores_bp.route("/api", methods=["GET"])
 def api_listar_professores():
-    db = SessionLocal()
     try:
-        profs = db.query(Professor).order_by(Professor.id).all()
-        return jsonify([{'id': p.id, 'nome': p.nome, 'disciplina': p.disciplina} for p in profs])
-    finally:
-        db.close()
+        with session_scope() as db:
+            profs = db.query(Professor).order_by(Professor.id).all()
+            return jsonify([{'id': p.id, 'nome': p.nome, 'disciplina': p.disciplina} for p in profs])
+    except OperationalError:
+        return jsonify([]), 503
 
 
 def _validar_professor_payload(data):
@@ -50,15 +46,17 @@ def api_criar_professor():
     if err:
         return jsonify({"erro": err}), 400
 
-    db = SessionLocal()
     try:
-        p = Professor(nome=data.get('nome'), disciplina=data.get('disciplina'))
-        db.add(p)
-        db.commit()
-        db.refresh(p)
-        return jsonify({"mensagem": "Criado", "id": p.id}), 201
-    finally:
-        db.close()
+        with session_scope() as db:
+            p = Professor(nome=data.get('nome'), disciplina=data.get('disciplina'))
+            db.add(p)
+            db.flush()
+            db.refresh(p)
+            return jsonify({"mensagem": "Criado", "id": p.id}), 201
+    except OperationalError:
+        return jsonify({"erro": "Banco de dados indisponível"}), 503
+    except IntegrityError as ie:
+        return jsonify({"erro": str(ie)}), 400
 
 
 @professores_bp.route("/api/<int:id>", methods=["PUT"])
@@ -68,28 +66,29 @@ def api_atualizar_professor(id):
     if err:
         return jsonify({"erro": err}), 400
 
-    db = SessionLocal()
     try:
-        p = db.get(Professor, id)
-        if not p:
-            return jsonify({"erro": "Professor não encontrado"}), 404
-        p.nome = data.get('nome')
-        p.disciplina = data.get('disciplina')
-        db.commit()
-        return jsonify({"mensagem": "Atualizado"})
-    finally:
-        db.close()
+        with session_scope() as db:
+            p = db.get(Professor, id)
+            if not p:
+                return jsonify({"erro": "Professor não encontrado"}), 404
+            p.nome = data.get('nome')
+            p.disciplina = data.get('disciplina')
+            db.flush()
+            return jsonify({"mensagem": "Atualizado"})
+    except OperationalError:
+        return jsonify({"erro": "Banco de dados indisponível"}), 503
+    except IntegrityError as ie:
+        return jsonify({"erro": str(ie)}), 400
 
 
 @professores_bp.route("/api/<int:id>", methods=["DELETE"])
 def api_deletar_professor(id):
-    db = SessionLocal()
     try:
-        p = db.get(Professor, id)
-        if not p:
-            return jsonify({"erro": "Professor não encontrado"}), 404
-        db.delete(p)
-        db.commit()
-        return jsonify({"mensagem": "Deletado"})
-    finally:
-        db.close()
+        with session_scope() as db:
+            p = db.get(Professor, id)
+            if not p:
+                return jsonify({"erro": "Professor não encontrado"}), 404
+            db.delete(p)
+            return jsonify({"mensagem": "Deletado"})
+    except OperationalError:
+        return jsonify({"erro": "Banco de dados indisponível"}), 503

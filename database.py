@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from config import SQLALCHEMY_DATABASE_URL
 
 # create engine and session factory
-engine = create_engine(SQLALCHEMY_DATABASE_URL, future=True)
+engine = create_engine(SQLALCHEMY_DATABASE_URL, future=True, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 Base = declarative_base()
