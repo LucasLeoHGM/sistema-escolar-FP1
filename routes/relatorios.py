@@ -1,44 +1,29 @@
 from flask import Blueprint, render_template
-from config import get_connection
+from database import SessionLocal
+from models import Turma
+from sqlalchemy.exc import OperationalError
 
 relatorios_bp = Blueprint("relatorios", __name__)
 
 
 @relatorios_bp.route("/relatorios/alunos-por-turma")
 def alunos_por_turma():
-    conn = get_connection()
     try:
-        cur = conn.cursor()
+        db = SessionLocal()
+    except OperationalError as e:
+        return render_template("relatorio_alunos_por_turma.html", dados=[], db_error=str(e))
 
-        # Traz todas as turmas
-        cur.execute("""
-            SELECT id, nome, sala 
-            FROM turmas
-            ORDER BY id;
-        """)
-        turmas = cur.fetchall()
-
+    try:
+        turmas = db.query(Turma).order_by(Turma.id).all()
         dados = []
-
-        for turma in turmas:
-            turma_id = turma[0]
-
-            # Busca alunos da turma
-            cur.execute("""
-                SELECT id, nome, idade
-                FROM alunos
-                WHERE turma_id = %s;
-            """, (turma_id,))
-
-            alunos = cur.fetchall()
-
+        for t in turmas:
+            alunos = [{'id': a.id, 'nome': a.nome, 'idade': a.idade} for a in t.alunos]
             dados.append({
-                "id": turma_id,
-                "nome_turma": turma[1],
-                "sala": turma[2],
-                "alunos": [{"id": a[0], "nome": a[1], "idade": a[2]} for a in alunos]
+                'id': t.id,
+                'nome_turma': t.nome,
+                'sala': t.sala,
+                'alunos': alunos
             })
-
         return render_template("relatorio_alunos_por_turma.html", dados=dados)
     finally:
-        conn.close()
+        db.close()

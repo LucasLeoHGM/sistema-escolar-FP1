@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template
 from routes.alunos import alunos_bp
 from routes.professores import professores_bp
@@ -16,4 +17,14 @@ def home():
     return render_template("base.html")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Ensure SQLAlchemy models/tables are created at startup
+    from database import init_db
+    try:
+        init_db()
+    except Exception as e:
+        # Print the error to help debugging during development
+        print("init_db() failed:", e)
+
+    # Respect environment variable for debug mode (safer than hardcoding)
+    debug_flag = os.getenv("FLASK_DEBUG", os.getenv("DEBUG", "False")).lower() in ("1", "true", "yes")
+    app.run(host="0.0.0.0", debug=debug_flag)

@@ -1,33 +1,23 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Relatório - Alunos por Turma</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #333; }
-        table { width: 60%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #aaa; padding: 8px; text-align: left; }
-        th { background-color: #ddd; }
-        .turma { margin-top: 30px; }
-    </style>
-</head>
-<body>
+{% extends "base.html" %}
 
+{% block content %}
+    <a class="back-link" href="/"><span class="label">Fechar</span></a>
     <h1>Relatório: Alunos por Turma</h1>
+
+    {% if db_error %}
+    <div class="alert error">
+        <strong>Erro de conexão com o banco:</strong> {{ db_error }}
+    </div>
+    {% endif %}
 
     {% for turma in dados %}
     <div class="turma">
-        <h2>Turma: {{ turma.nome_turma }} (Sala: {{ turma.sala }})</h2>
+        <h2>Turma: {{ turma.nome_turma }} <span class="small">(Sala: {{ turma.sala }})</span></h2>
 
         {% if turma.alunos %}
         <table>
-            <tr>
-                <th>ID</th>
-                <th>Nome</th>
-                <th>Idade</th>
-            </tr>
-
+            <thead><tr><th>ID</th><th>Nome</th><th>Idade</th></tr></thead>
+            <tbody>
             {% for aluno in turma.alunos %}
             <tr>
                 <td>{{ aluno.id }}</td>
@@ -35,6 +25,7 @@
                 <td>{{ aluno.idade }}</td>
             </tr>
             {% endfor %}
+            </tbody>
         </table>
         {% else %}
         <p><b>Nenhum aluno nesta turma.</b></p>
@@ -42,5 +33,4 @@
     </div>
     {% endfor %}
 
-</body>
-</html>
+{% endblock %}

@@ -1,80 +1,133 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Alunos</title>
-    <style> body{font-family:Arial;margin:30px} input{padding:6px} table{border-collapse:collapse} th,td{border:1px solid #ccc;padding:8px}</style>
-</head>
-<body>
-    <h2>Alunos</h2>
+{% extends "base.html" %}
 
-    <form id="formAluno">
-        <input id="nome" placeholder="Nome" required>
-        <input id="idade" type="number" placeholder="Idade" required>
-        <input id="turma_id" type="number" placeholder="ID Turma" required>
-        <button type="submit">Cadastrar</button>
-    </form>
+{% block content %}
+    <a class="back-link" href="/"><span class="label">Fechar</span></a>
+    <h1>Alunos</h1>
 
-    <hr>
+    {% if db_error %}
+    <div class="alert error">
+        <strong>Erro de conexão com o banco:</strong> {{ db_error }}
+    </div>
+    {% endif %}
+
+    <div class="controls">
+        <form id="formAluno" class="form-row">
+            <input id="nome" placeholder="Nome" required>
+            <input id="idade" type="number" placeholder="Idade" required>
+            <input id="turma_id" type="number" placeholder="ID Turma" required>
+            <button class="btn" type="submit">Cadastrar</button>
+        </form>
+        <div class="spacer"></div>
+    </div>
 
     <table>
         <thead><tr><th>ID</th><th>Nome</th><th>Idade</th><th>Turma</th><th>Ações</th></tr></thead>
-        <tbody id="tbody"></tbody>
+        <tbody id="tbody" {% if alunos %}data-server="1"{% endif %}>
+        {% if alunos %}
+            {% for a in alunos %}
+            <tr>
+                <td>{{ a.id }}</td>
+                <td>{{ a.nome }}</td>
+                <td>{{ a.idade or '' }}</td>
+                <td>{{ a.turma_nome or a.turma_id or '' }}</td>
+                <td>
+                    <button class="btn ghost btn-editar" data-id="{{ a.id }}" data-nome="{{ a.nome|e }}" data-idade="{{ a.idade or '' }}" data-turma="{{ a.turma_id or '' }}">Editar</button>
+                    <button class="btn danger btn-deletar" data-id="{{ a.id }}">Excluir</button>
+                </td>
+            </tr>
+            {% endfor %}
+        {% endif %}
+        </tbody>
     </table>
 
-<script>
-const API = "/alunos/api";
+    <script>
+    const API = "/alunos/api";
 
-async function listar(){
-    const res = await fetch(API);
-    const dados = await res.json();
-    const tbody = document.getElementById("tbody");
-    tbody.innerHTML = "";
-    dados.forEach(a=>{
-        tbody.innerHTML += `<tr>
-            <td>${a.id}</td>
-            <td>${a.nome}</td>
-            <td>${a.idade ?? ''}</td>
-            <td>${a.turma_id ?? ''}</td>
-            <td>
-                <button onclick="editar(${a.id},'${(a.nome||'').replace(/'/g,"\\'")}',${a.idade||''},${a.turma_id||''})">Editar</button>
-                <button onclick="deletar(${a.id})" style="background:red;color:#fff">Excluir</button>
-            </td>
-        </tr>`;
+    async function listar(){
+        const tbody = document.getElementById("tbody");
+        if(tbody.dataset.server === "1") return;
+        const res = await fetch(API);
+        if(!res.ok){
+            const txt = await res.text();
+            alert('Erro ao listar alunos: ' + txt);
+            return;
+        }
+        const dados = await res.json();
+        tbody.innerHTML = "";
+        dados.forEach(a=>{
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${a.id}</td>
+                <td>${a.nome}</td>
+                <td>${a.idade ?? ''}</td>
+                <td>${a.turma_id ?? ''}</td>
+                <td>
+                    <button class="btn ghost btn-editar" data-id="${a.id}" data-nome="${(a.nome||'').replace(/"/g,'&quot;')}" data-idade="${a.idade||''}" data-turma="${a.turma_id||''}">Editar</button>
+                    <button class="btn danger btn-deletar" data-id="${a.id}">Excluir</button>
+                </td>`;
+            tbody.appendChild(row);
+        });
+    }
+
+    document.getElementById("formAluno").addEventListener("submit", async (e)=>{
+        e.preventDefault();
+        const payload = {
+            nome: document.getElementById("nome").value,
+            idade: parseInt(document.getElementById("idade").value),
+            turma_id: parseInt(document.getElementById("turma_id").value)
+        };
+        const resp = await fetch(API, { method: "POST", headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if(!resp.ok){
+            const err = await resp.json().catch(()=>({erro: resp.statusText}));
+            alert('Erro ao criar aluno: ' + (err.erro || JSON.stringify(err)));
+            return;
+        }
+        e.target.reset();
+        document.getElementById("tbody").dataset.server = "0";
+        listar();
     });
-}
 
-document.getElementById("formAluno").addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const payload = {
-        nome: document.getElementById("nome").value,
-        idade: parseInt(document.getElementById("idade").value),
-        turma_id: parseInt(document.getElementById("turma_id").value)
-    };
-    await fetch(API, { method: "POST", headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-    e.target.reset();
-    listar();
-});
+    async function deletar(id){
+        if(!confirm("Excluir aluno?")) return;
+        const resp = await fetch(`${API}/${id}`, { method: "DELETE" });
+        if(!resp.ok){
+            const err = await resp.json().catch(()=>({erro: resp.statusText}));
+            alert('Erro ao excluir aluno: ' + (err.erro || JSON.stringify(err)));
+            return;
+        }
+        document.getElementById("tbody").dataset.server = "0";
+        listar();
+    }
 
-async function deletar(id){
-    if(!confirm("Excluir aluno?")) return;
-    await fetch(`${API}/${id}`, { method: "DELETE" });
-    listar();
-}
+    async function editar(id, nome, idade, turma_id){
+        const novoNome = prompt("Nome:", nome) || nome;
+        const novaIdade = prompt("Idade:", idade) || idade;
+        const novaTurma = prompt("Turma ID:", turma_id) || turma_id;
+        const resp = await fetch(`${API}/${id}`, {
+            method: "PUT",
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ nome: novoNome, idade: parseInt(novaIdade), turma_id: parseInt(novaTurma) })
+        });
+        if(!resp.ok){
+            const err = await resp.json().catch(()=>({erro: resp.statusText}));
+            alert('Erro ao atualizar aluno: ' + (err.erro || JSON.stringify(err)));
+            return;
+        }
+        document.getElementById("tbody").dataset.server = "0";
+        listar();
+    }
 
-async function editar(id, nome, idade, turma_id){
-    const novoNome = prompt("Nome:", nome) || nome;
-    const novaIdade = prompt("Idade:", idade) || idade;
-    const novaTurma = prompt("Turma ID:", turma_id) || turma_id;
-    await fetch(`${API}/${id}`, {
-        method: "PUT",
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ nome: novoNome, idade: parseInt(novaIdade), turma_id: parseInt(novaTurma) })
+    document.getElementById("tbody").addEventListener("click", (e)=>{
+        const btn = e.target.closest("button");
+        if(!btn) return;
+        if(btn.classList.contains("btn-deletar")){
+            deletar(btn.dataset.id);
+        } else if(btn.classList.contains("btn-editar")){
+            editar(btn.dataset.id, btn.dataset.nome || '', btn.dataset.idade || null, btn.dataset.turma || null);
+        }
     });
-    listar();
-}
 
-listar();
-</script>
-</body>
-</html>
+    listar();
+    </script>
+
+{% endblock %}

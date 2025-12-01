@@ -1,36 +1,36 @@
 from flask import Blueprint, request, jsonify, render_template
-from config import get_connection, dict_cursor
+from database import SessionLocal
+from models import Turma
+from sqlalchemy.exc import OperationalError
 
 turmas_bp = Blueprint("turmas", __name__, url_prefix="/turmas")
 
 
 @turmas_bp.route("/", methods=["GET"])
 def page_listar_turmas():
-    conn = get_connection()
     try:
-        cur = dict_cursor(conn)
-        cur.execute("""
-            SELECT t.id, t.nome, t.sala, t.professor_id, p.nome AS professor_nome
-            FROM turmas t
-            LEFT JOIN professores p ON p.id = t.professor_id
-            ORDER BY t.id;
-        """)
-        turmas = cur.fetchall()
-        return render_template("turmas.html", turmas=turmas)
+        db = SessionLocal()
+    except OperationalError as e:
+        return render_template("turmas.html", turmas=[], db_error=str(e))
+
+    try:
+        turmas = db.query(Turma).order_by(Turma.id).all()
+        turmas_out = []
+        for t in turmas:
+            turmas_out.append({'id': t.id, 'nome': t.nome, 'sala': t.sala, 'professor_id': t.professor_id, 'professor_nome': t.professor.nome if t.professor else None})
+        return render_template("turmas.html", turmas=turmas_out)
     finally:
-        conn.close()
+        db.close()
 
 
 @turmas_bp.route("/api", methods=["GET"])
 def api_listar_turmas():
-    conn = get_connection()
+    db = SessionLocal()
     try:
-        cur = dict_cursor(conn)
-        cur.execute("SELECT * FROM turmas ORDER BY id;")
-        dados = cur.fetchall()
-        return jsonify(dados)
+        turmas = db.query(Turma).order_by(Turma.id).all()
+        return jsonify([{'id': t.id, 'nome': t.nome, 'sala': t.sala, 'professor_id': t.professor_id} for t in turmas])
     finally:
-        conn.close()
+        db.close()
 
 
 def _validar_turma_payload(data):
@@ -59,18 +59,15 @@ def api_criar_turma():
     if err:
         return jsonify({"erro": err}), 400
 
-    conn = get_connection()
+    db = SessionLocal()
     try:
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO turmas (nome, sala, professor_id) VALUES (%s, %s, %s) RETURNING id;",
-            (data.get("nome"), data.get("sala"), data.get("professor_id"))
-        )
-        new_id = cur.fetchone()[0]
-        conn.commit()
-        return jsonify({"mensagem": "Criado", "id": new_id}), 201
+        t = Turma(nome=data.get('nome'), sala=data.get('sala'), professor_id=data.get('professor_id'))
+        db.add(t)
+        db.commit()
+        db.refresh(t)
+        return jsonify({"mensagem": "Criado", "id": t.id}), 201
     finally:
-        conn.close()
+        db.close()
 
 
 @turmas_bp.route("/api/<int:id>", methods=["PUT"])
@@ -80,26 +77,29 @@ def api_atualizar_turma(id):
     if err:
         return jsonify({"erro": err}), 400
 
-    conn = get_connection()
+    db = SessionLocal()
     try:
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE turmas SET nome=%s, sala=%s, professor_id=%s WHERE id=%s",
-            (data.get("nome"), data.get("sala"), data.get("professor_id"), id)
-        )
-        conn.commit()
+        t = db.get(Turma, id)
+        if not t:
+            return jsonify({"erro": "Turma não encontrada"}), 404
+        t.nome = data.get('nome')
+        t.sala = data.get('sala')
+        t.professor_id = data.get('professor_id')
+        db.commit()
         return jsonify({"mensagem": "Atualizado"})
     finally:
-        conn.close()
+        db.close()
 
 
 @turmas_bp.route("/api/<int:id>", methods=["DELETE"])
 def api_deletar_turma(id):
-    conn = get_connection()
+    db = SessionLocal()
     try:
-        cur = conn.cursor()
-        cur.execute("DELETE FROM turmas WHERE id=%s", (id,))
-        conn.commit()
+        t = db.get(Turma, id)
+        if not t:
+            return jsonify({"erro": "Turma não encontrada"}), 404
+        db.delete(t)
+        db.commit()
         return jsonify({"mensagem": "Deletado"})
     finally:
-        conn.close()
+        db.close()
