@@ -1,117 +1,76 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Turmas</title>
+    <style> body{font-family:Arial;margin:30px} input{padding:6px} table{border-collapse:collapse} th,td{border:1px solid #ccc;padding:8px}</style>
+</head>
+<body>
+    <h2>Turmas</h2>
 
-{% block content %}
-    <a class="back-link" href="/"><span class="label">Fechar</span></a>
-    <h1>Turmas</h1>
+    <form id="formTurma">
+        <input id="nome" placeholder="Nome da turma" required>
+        <input id="sala" placeholder="Sala">
+        <input id="professor_id" placeholder="ID Professor" type="number">
+        <button type="submit">Cadastrar</button>
+    </form>
 
-    {% if db_error %}
-    <div class="alert error">
-        <strong>Erro de conexão com o banco:</strong> {{ db_error }}
-    </div>
-    {% endif %}
-
-    <div class="controls">
-        <form id="formTurma" class="form-row">
-            <input id="nome" placeholder="Nome da turma" required>
-            <input id="sala" placeholder="Sala">
-            <input id="professor_id" placeholder="ID Professor" type="number">
-            <button class="btn" type="submit">Cadastrar</button>
-        </form>
-        <div class="spacer"></div>
-    </div>
+    <hr>
 
     <table>
         <thead><tr><th>ID</th><th>Nome</th><th>Sala</th><th>Professor</th><th>Ações</th></tr></thead>
-        <tbody id="tbody" {% if turmas %}data-server="1"{% endif %}>
-        {% if turmas %}
-            {% for t in turmas %}
-            <tr>
-                <td>{{ t.id }}</td>
-                <td>{{ t.nome }}</td>
-                <td>{{ t.sala or '' }}</td>
-                <td>{{ t.professor_nome or t.professor_id or '' }}</td>
-                <td>
-                    <button class="btn ghost btn-editar" data-id="{{ t.id }}" data-nome="{{ (t.nome|replace('"','&quot;')) }}" data-sala="{{ (t.sala|replace('"','&quot;')) }}" data-prof="{{ t.professor_id or '' }}">Editar</button>
-                    <button class="btn danger btn-deletar" data-id="{{ t.id }}">Excluir</button>
-                </td>
-            </tr>
-            {% endfor %}
-        {% endif %}
-        </tbody>
+        <tbody id="tbody"></tbody>
     </table>
 
-    <script>
-    const API = "/turmas/api";
+<script>
+const API = "/turmas/api";
 
-    async function listar(){
-        const tbody = document.getElementById("tbody");
-        if(tbody.dataset.server === "1") return;
-        const res = await fetch(API);
-        const dados = await res.json();
-        tbody.innerHTML = "";
-        dados.forEach(t=>{
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${t.id}</td>
-                <td>${t.nome}</td>
-                <td>${t.sala||''}</td>
-                <td>${t.professor_id||''}</td>
-                <td>
-                    <button class="btn ghost btn-editar" data-id="${t.id}" data-nome="${(t.nome||'').replace(/"/g,'&quot;')}" data-sala="${(t.sala||'').replace(/"/g,'&quot;')}" data-prof="${t.professor_id||''}">Editar</button>
-                    <button class="btn danger btn-deletar" data-id="${t.id}">Excluir</button>
-                </td>`;
-            tbody.appendChild(row);
-        });
-    }
-
-    document.getElementById("formTurma").addEventListener("submit", async (e)=>{
-        e.preventDefault();
-        const nomeInp = document.getElementById('nome');
-        const salaInp = document.getElementById('sala');
-        const profInp = document.getElementById('professor_id');
-        const payload = { nome: nomeInp.value, sala: salaInp.value, professor_id: profInp.value ? parseInt(profInp.value) : null };
-        const resp = await fetch(API, { method: "POST", headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-        if(!resp.ok){
-            const err = await resp.json().catch(()=>({erro: resp.statusText}));
-            alert('Erro ao criar turma: ' + (err.erro || JSON.stringify(err)));
-            return;
-        }
-        e.target.reset();
-        document.getElementById("tbody").dataset.server = "0";
-        listar();
+async function listar(){
+    const res = await fetch(API);
+    const dados = await res.json();
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = "";
+    dados.forEach(t=>{
+        tbody.innerHTML += `<tr>
+            <td>${t.id}</td>
+            <td>${t.nome}</td>
+            <td>${t.sala||''}</td>
+            <td>${t.professor_id||''}</td>
+            <td>
+                <button onclick="editar(${t.id},'${(t.nome||'').replace(/'/g,"\\'")}','${(t.sala||'').replace(/'/g,"\\'")}',${t.professor_id||'null'})">Editar</button>
+                <button onclick="deletar(${t.id})" style="background:red;color:#fff">Excluir</button>
+            </td>
+        </tr>`;
     });
+}
 
-    async function deletar(id){
-        if(!confirm("Excluir turma?")) return;
-        await fetch(`${API}/${id}`, { method: "DELETE" });
-        document.getElementById("tbody").dataset.server = "0";
-        listar();
-    }
-
-    async function editar(id, nomeA, salaA, profA){
-        const novoNome = prompt("Nome:", nomeA) || nomeA;
-        const novaSala = prompt("Sala:", salaA) || salaA;
-        const novoProf = prompt("Professor ID (deixe vazio para null):", profA===null ? '' : profA);
-        await fetch(`${API}/${id}`, {
-            method: "PUT",
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ nome: novoNome, sala: novaSala, professor_id: novoProf ? parseInt(novoProf) : null })
-        });
-        document.getElementById("tbody").dataset.server = "0";
-        listar();
-    }
-
-    document.getElementById("tbody").addEventListener("click", (e)=>{
-        const btn = e.target;
-        if(btn.classList.contains("btn-deletar")){
-            deletar(btn.dataset.id);
-        } else if(btn.classList.contains("btn-editar")){
-            const prof = btn.dataset.prof === '' ? null : (btn.dataset.prof? parseInt(btn.dataset.prof) : null);
-            editar(btn.dataset.id, btn.dataset.nome || '', btn.dataset.sala || '', prof);
-        }
-    });
-
+document.getElementById("formTurma").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const payload = { nome: nome.value, sala: sala.value, professor_id: professor_id.value ? parseInt(professor_id.value) : null };
+    await fetch(API, { method: "POST", headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    e.target.reset();
     listar();
-    </script>
+});
 
-{% endblock %}
+async function deletar(id){
+    if(!confirm("Excluir turma?")) return;
+    await fetch(`${API}/${id}`, { method: "DELETE" });
+    listar();
+}
+
+async function editar(id, nomeA, salaA, profA){
+    const novoNome = prompt("Nome:", nomeA) || nomeA;
+    const novaSala = prompt("Sala:", salaA) || salaA;
+    const novoProf = prompt("Professor ID (deixe vazio para null):", profA===null ? '' : profA);
+    await fetch(`${API}/${id}`, {
+        method: "PUT",
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ nome: novoNome, sala: novaSala, professor_id: novoProf ? parseInt(novoProf) : null })
+    });
+    listar();
+}
+
+listar();
+</script>
+</body>
+</html>

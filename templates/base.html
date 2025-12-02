@@ -2,26 +2,15 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Sistema Escolar</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Sistema de Gestão Escolar</h1>
-            <nav>
-                <a href="/professores/">Professores</a>
-                <a href="/turmas/">Turmas</a>
-                <a href="/alunos/">Alunos</a>
-                <a href="/relatorios/alunos-por-turma">Relatório</a>
-            </nav>
-        </header>
-        <main>
-            <div class="card">
-                {% block content %}{% endblock %}
-            </div>
-        </main>
-    </div>
+    <h1>Sistema de Gestão Escolar</h1>
+    <ul>
+        <li><a href="/professores/">Professores</a></li>
+        <li><a href="/turmas/">Turmas</a></li>
+        <li><a href="/alunos/">Alunos</a></li>
+        <li><a href="/relatorios/alunos-por-turma">Relatório: Alunos por Turma</a></li>
+    </ul>
 </body>
 </html>

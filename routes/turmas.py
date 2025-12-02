@@ -1,104 +1,63 @@
 from flask import Blueprint, request, jsonify, render_template
-from database import session_scope
-from models import Turma
-from sqlalchemy.exc import OperationalError, IntegrityError
+from config import get_connection, dict_cursor
 
 turmas_bp = Blueprint("turmas", __name__, url_prefix="/turmas")
 
-
 @turmas_bp.route("/", methods=["GET"])
 def page_listar_turmas():
-    try:
-        with session_scope() as db:
-            turmas = db.query(Turma).order_by(Turma.id).all()
-            turmas_out = []
-            for t in turmas:
-                turmas_out.append({'id': t.id, 'nome': t.nome, 'sala': t.sala, 'professor_id': t.professor_id, 'professor_nome': t.professor.nome if t.professor else None})
-            return render_template("turmas.html", turmas=turmas_out)
-    except OperationalError as e:
-        return render_template("turmas.html", turmas=[], db_error=str(e))
-
+    conn = get_connection()
+    cur = dict_cursor(conn)
+    cur.execute("""
+        SELECT t.id, t.nome, t.sala, t.professor_id, p.nome AS professor_nome
+        FROM turmas t
+        LEFT JOIN professores p ON p.id = t.professor_id
+        ORDER BY t.id;
+    """)
+    turmas = cur.fetchall()
+    conn.close()
+    return render_template("turmas.html", turmas=turmas)
 
 @turmas_bp.route("/api", methods=["GET"])
 def api_listar_turmas():
-    try:
-        with session_scope() as db:
-            turmas = db.query(Turma).order_by(Turma.id).all()
-            return jsonify([{'id': t.id, 'nome': t.nome, 'sala': t.sala, 'professor_id': t.professor_id} for t in turmas])
-    except OperationalError:
-        return jsonify([]), 503
-
-
-def _validar_turma_payload(data):
-    if not data or not isinstance(data, dict):
-        return "Payload inválido"
-    nome = data.get("nome")
-    sala = data.get("sala")
-    if not nome or not str(nome).strip():
-        return "Campo 'nome' é obrigatório"
-    if not sala or not str(sala).strip():
-        return "Campo 'sala' é obrigatório"
-    # professor_id é opcional; se fornecido, deve ser inteiro
-    prof = data.get("professor_id")
-    if prof is not None:
-        try:
-            int(prof)
-        except (TypeError, ValueError):
-            return "Campo 'professor_id' deve ser um inteiro"
-    return None
-
+    conn = get_connection()
+    cur = dict_cursor(conn)
+    cur.execute("SELECT * FROM turmas ORDER BY id;")
+    dados = cur.fetchall()
+    conn.close()
+    return jsonify(dados)
 
 @turmas_bp.route("/api", methods=["POST"])
 def api_criar_turma():
     data = request.json
-    err = _validar_turma_payload(data)
-    if err:
-        return jsonify({"erro": err}), 400
-
-    try:
-        with session_scope() as db:
-            t = Turma(nome=data.get('nome'), sala=data.get('sala'), professor_id=data.get('professor_id'))
-            db.add(t)
-            db.flush()
-            db.refresh(t)
-            return jsonify({"mensagem": "Criado", "id": t.id}), 201
-    except OperationalError:
-        return jsonify({"erro": "Banco de dados indisponível"}), 503
-    except IntegrityError as ie:
-        return jsonify({"erro": str(ie)}), 400
-
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO turmas (nome, sala, professor_id) VALUES (%s, %s, %s) RETURNING id;",
+        (data.get("nome"), data.get("sala"), data.get("professor_id"))
+    )
+    new_id = cur.fetchone()[0]
+    conn.commit()
+    conn.close()
+    return jsonify({"mensagem": "Criado", "id": new_id}), 201
 
 @turmas_bp.route("/api/<int:id>", methods=["PUT"])
 def api_atualizar_turma(id):
     data = request.json
-    err = _validar_turma_payload(data)
-    if err:
-        return jsonify({"erro": err}), 400
-
-    try:
-        with session_scope() as db:
-            t = db.get(Turma, id)
-            if not t:
-                return jsonify({"erro": "Turma não encontrada"}), 404
-            t.nome = data.get('nome')
-            t.sala = data.get('sala')
-            t.professor_id = data.get('professor_id')
-            db.flush()
-            return jsonify({"mensagem": "Atualizado"})
-    except OperationalError:
-        return jsonify({"erro": "Banco de dados indisponível"}), 503
-    except IntegrityError as ie:
-        return jsonify({"erro": str(ie)}), 400
-
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE turmas SET nome=%s, sala=%s, professor_id=%s WHERE id=%s",
+        (data.get("nome"), data.get("sala"), data.get("professor_id"), id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"mensagem": "Atualizado"})
 
 @turmas_bp.route("/api/<int:id>", methods=["DELETE"])
 def api_deletar_turma(id):
-    try:
-        with session_scope() as db:
-            t = db.get(Turma, id)
-            if not t:
-                return jsonify({"erro": "Turma não encontrada"}), 404
-            db.delete(t)
-            return jsonify({"mensagem": "Deletado"})
-    except OperationalError:
-        return jsonify({"erro": "Banco de dados indisponível"}), 503
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM turmas WHERE id=%s", (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"mensagem": "Deletado"})
