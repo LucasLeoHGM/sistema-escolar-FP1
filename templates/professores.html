@@ -3,8 +3,6 @@
 <head>
     <meta charset="utf-8">
     <title>Professores</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="/static/pages.css">
 
     <style>
         body {
@@ -22,7 +20,7 @@
         }
 
         .page-container {
-           background: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.12);
             padding: 35px;
             border-radius: 16px;
             width: 90%;
@@ -32,16 +30,7 @@
             box-shadow: 0 0 20px rgba(0,0,0,.4);
         }
 
-        h2 {
-            text-align: center;
-            margin-top: 0;
-            color: #ffffff;
-        }
-
         form {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
             margin-bottom: 20px;
         }
 
@@ -54,78 +43,55 @@
             outline: none;
         }
 
-        form input:focus {
-            border-color: #4A90E2;
-            box-shadow: 0 0 5px rgba(74,144,226,0.4);
-        }
-
-        form button {
+        button {
             padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
             background: rgba(255,255,255,0.15);
             color: white;
-            border: none;
-            border-radius: 8px;
             cursor: pointer;
             transition: 0.25s;
         }
 
-        form button:hover {
+        button:hover {
             background: rgba(255,255,255,0.3);
             transform: scale(1.05);
+        }
+
+        .delete {
+            background: rgba(255, 0, 0, 0.6) !important;
+        }
+        .delete:hover {
+            background: rgba(255, 0, 0, 0.8) !important;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
-            border-radius: 6px;
+            background: rgba(255,255,255,0.12);
+            border-radius: 10px;
             overflow: hidden;
+            margin-top: 18px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.20);
         }
 
         th {
-            background: rgba(255,255,255,0.12);
-            color: white;
-            padding: 12px;
-            text-align: center;
+            background: rgba(255,255,255,0.20);
         }
 
-        td {
-            background: #5b7d9b;
-            border-bottom: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-        }
-
-        tr:hover td {
-            background: #86acce;
-        }
-
-        td button {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 2px;
-        }
-
-        td button:first-child {
-            background: #4A90E2;
-            color: white;
-        }
-
-        td button:first-child:hover {
-            background: #1456C1;
-        }
-
-        td button[style] {
-            background: red !important;
+        tr:hover {
+            background: rgba(255,255,255,0.10);
         }
     </style>
+
 </head>
-
 <body>
-    <div class="page-container">
 
+    <div class="page-container">
         <h2>Professores</h2>
 
         <form id="formProf">
@@ -133,8 +99,6 @@
             <input id="disciplina" placeholder="Disciplina" required>
             <button type="submit">Cadastrar</button>
         </form>
-
-        <hr>
 
         <table>
             <thead>
@@ -147,7 +111,6 @@
             </thead>
             <tbody id="tbody"></tbody>
         </table>
-
     </div>
 
 <script>
@@ -165,7 +128,7 @@ async function listar(){
             <td>${p.disciplina}</td>
             <td>
                 <button onclick="editar(${p.id},'${(p.nome||'').replace(/'/g,"\\'")}','${(p.disciplina||'').replace(/'/g,"\\'")}')">Editar</button>
-                <button onclick="deletar(${p.id})" style="background:red;color:#fff">Excluir</button>
+                <button class="delete" onclick="deletar(${p.id})">Excluir</button>
             </td>
         </tr>`;
     });
@@ -173,8 +136,17 @@ async function listar(){
 
 document.getElementById("formProf").addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const payload = { nome: nome.value, disciplina: disciplina.value };
-    await fetch(API, { method: "POST", headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const payload = { 
+        nome: document.getElementById("nome").value, 
+        disciplina: document.getElementById("disciplina").value 
+    };
+
+    await fetch(API, { 
+        method: "POST", 
+        headers: {'Content-Type':'application/json'}, 
+        body: JSON.stringify(payload) 
+    });
+
     e.target.reset();
     listar();
 });
@@ -188,15 +160,18 @@ async function deletar(id){
 async function editar(id, nome, disciplina){
     const novoNome = prompt("Nome:", nome) || nome;
     const novaDisciplina = prompt("Disciplina:", disciplina) || disciplina;
+
     await fetch(`${API}/${id}`, {
         method: "PUT",
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ nome: novoNome, disciplina: novaDisciplina })
     });
+
     listar();
 }
 
 listar();
 </script>
+
 </body>
 </html>

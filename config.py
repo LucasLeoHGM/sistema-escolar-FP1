@@ -9,14 +9,10 @@ DB_CONFIG = {
     "port": "5432"
 }
 
+_conn = psycopg2.connect(**DB_CONFIG)
+
 def get_connection():
-    return psycopg2.connect(
-        host=DB_CONFIG["host"],
-        database=DB_CONFIG["database"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-        port=DB_CONFIG["port"]
-    )
+    return _conn
 
 def dict_cursor(conn):
     return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
