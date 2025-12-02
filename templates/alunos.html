@@ -3,24 +3,112 @@
 <head>
     <meta charset="utf-8">
     <title>Alunos</title>
-    <style> body{font-family:Arial;margin:30px} input{padding:6px} table{border-collapse:collapse} th,td{border:1px solid #ccc;padding:8px}</style>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: linear-gradient(135deg, #4B79A1, #283E51);
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+
+        .page-container {
+            background: rgba(255, 255, 255, 0.12);
+            padding: 35px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 900px;
+            text-align: center;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 20px rgba(0,0,0,.4);
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        form input {
+            padding: 10px;
+            margin: 6px;
+            width: 180px;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+        }
+
+        button {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            cursor: pointer;
+            transition: 0.25s;
+        }
+
+        button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        .delete {
+            background: rgba(255, 0, 0, 0.6) !important;
+        }
+        .delete:hover {
+            background: rgba(255, 0, 0, 0.8) !important;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255,255,255,0.12);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 18px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.20);
+        }
+
+        th {
+            background: rgba(255,255,255,0.20);
+        }
+
+        tr:hover {
+            background: rgba(255,255,255,0.10);
+        }
+    </style>
+
 </head>
 <body>
-    <h2>Alunos</h2>
 
-    <form id="formAluno">
-        <input id="nome" placeholder="Nome" required>
-        <input id="idade" type="number" placeholder="Idade" required>
-        <input id="turma_id" type="number" placeholder="ID Turma" required>
-        <button type="submit">Cadastrar</button>
-    </form>
+    <div class="page-container">
+        <h2>Alunos</h2>
 
-    <hr>
+        <form id="formAluno">
+            <input id="nome" placeholder="Nome" required>
+            <input id="idade" type="number" placeholder="Idade" required>
+            <input id="turma_id" type="number" placeholder="ID Turma" required>
+            <button type="submit">Cadastrar</button>
+        </form>
 
-    <table>
-        <thead><tr><th>ID</th><th>Nome</th><th>Idade</th><th>Turma</th><th>Ações</th></tr></thead>
-        <tbody id="tbody"></tbody>
-    </table>
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Nome</th><th>Idade</th><th>Turma</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
 
 <script>
 const API = "/alunos/api";
@@ -38,7 +126,7 @@ async function listar(){
             <td>${a.turma_id ?? ''}</td>
             <td>
                 <button onclick="editar(${a.id},'${(a.nome||'').replace(/'/g,"\\'")}',${a.idade||''},${a.turma_id||''})">Editar</button>
-                <button onclick="deletar(${a.id})" style="background:red;color:#fff">Excluir</button>
+                <button class="delete" onclick="deletar(${a.id})">Excluir</button>
             </td>
         </tr>`;
     });
@@ -66,15 +154,22 @@ async function editar(id, nome, idade, turma_id){
     const novoNome = prompt("Nome:", nome) || nome;
     const novaIdade = prompt("Idade:", idade) || idade;
     const novaTurma = prompt("Turma ID:", turma_id) || turma_id;
+
     await fetch(`${API}/${id}`, {
         method: "PUT",
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ nome: novoNome, idade: parseInt(novaIdade), turma_id: parseInt(novaTurma) })
+        body: JSON.stringify({
+            nome: novoNome,
+            idade: parseInt(novaIdade),
+            turma_id: parseInt(novaTurma)
+        })
     });
+
     listar();
 }
 
 listar();
 </script>
+
 </body>
 </html>
